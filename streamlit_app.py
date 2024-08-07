@@ -7,13 +7,27 @@ import json
 # OpenAI API 키 설정
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-def generate_baby_names(last_name, gender, style):
-    # 성별 및 스타일에 따라 프롬프트 조정
+def contains_english(text):
+    # 텍스트에 영어 문자가 있는지 확인하는 함수
+    return bool(re.search(r'[a-zA-Z]', text))
+
+def generate_baby_names(last_name, gender, style, length, repetition_syllable):
+    # 성별, 스타일, 이름 길이에 따라 프롬프트 조정
     gender_text = "남자" if gender == "남자" else "여자"
-    style_text = "2020년 이후 한국의 최근 작명 트렌드를 반영한 인기 있는" if style == "인기 있는 이름" else "한국인 아기 이름으로 사용하는 이름 중 독특하고 특이한"
+    style_text = "인기 있는" if style == "인기 있는 이름" else "특별하고 독특하면서 기억에 남을"
+    length_text = {        
+        "2글자": "두 글자",
+        "외자": "한 글자",
+        "상관없음": "한 글자 또는 두 글자"
+    }[length]
+
+    # 돌림자가 입력된 경우 프롬프트에 포함
+    repetition_text = f"이름에는 반드시 '{repetition_syllable}'이라는 돌림자가 포함되어야 해." if repetition_syllable else ""
 
     prompt = f"""
     '{last_name}'씨의 {gender_text} {style_text} 아기 이름 5개를 JSON 형식으로 추천해줘.
+    이름은 입력한 {last_name}씨를 제외하고 {length_text} 이름으로 추천해줘.
+    {repetition_text}
     항상 한자어로 지은 이름 4개와 한글 이름 1개를 추천해줘. 예쁘고 사랑받을 수 있는 이름으로 추천해줘.
     한자어로 지은 경우에는 한자의 음독, 훈독 내용을 이름(한자) 부분에 포함해줘.
     
@@ -31,7 +45,7 @@ def generate_baby_names(last_name, gender, style):
     response = openai.ChatCompletion.create(
         model="gpt-4o-mini",
         messages=[
-            {"role": "system", "content": "당신은 한국의 아기 이름 추천 전문가입니다."},
+            {"role": "system", "content": "당신은 한국의 아기 이름 추천 전문가입니다. 입력한 조건에 맞게 적절한 이름을 추천해주세요."},
             {"role": "user", "content": prompt}
         ],
         temperature=0.7
@@ -40,7 +54,6 @@ def generate_baby_names(last_name, gender, style):
     return response.choices[0].message.content
 
 def parse_names(json_content):
-    #print(json_content)
     try:
         # JSON 문자열이 추가적인 문자열로 감싸져 있는 경우 이를 정리하여 순수 JSON 데이터만 추출
         json_start = json_content.find('[')
@@ -66,11 +79,16 @@ with col1:
     last_name = st.text_input("성씨를 입력해주세요:")
     gender = st.selectbox("아기의 성별을 선택해주세요:", ("남자", "여자"))
     style = st.selectbox("이름 스타일을 선택해주세요:", ("인기 있는 이름", "특이한 이름"))
-    
+    length = st.selectbox("이름 길이를 선택해주세요:", ("2글자", "외자", "상관없음"))
+    repetition_syllable = st.text_input("돌림자를 입력해주세요:")
+
     if st.button("이름 추천받기"):
-        if last_name:
+        # 영어 문자가 포함되어 있는지 확인
+        if contains_english(last_name) or contains_english(repetition_syllable):
+            st.error("성씨나 돌림자에 영어 문자가 포함되어 있습니다. 한글만 입력해주세요.")
+        elif last_name:
             with st.spinner("이름을 생성중입니다..."):
-                baby_names_json = generate_baby_names(last_name, gender, style)
+                baby_names_json = generate_baby_names(last_name, gender, style, length, repetition_syllable)
                 parsed_names = parse_names(baby_names_json)
                 st.session_state.names = parsed_names
                 st.success("추천 이름이 생성되었습니다!")
