@@ -21,15 +21,21 @@ def generate_baby_names(last_name, gender, style, length, repetition_syllable):
         "상관없음": "한 글자 또는 두 글자"
     }[length]
 
-    # 돌림자가 입력된 경우 프롬프트에 포함
-    repetition_text = f"이름에는 반드시 '{repetition_syllable}'이라는 돌림자가 포함되어야 해." if repetition_syllable else ""
+    #돌림자가 입력된 경우 프롬프트에 포함
+    if repetition_syllable:
+        repetition_text = (
+            f"이름에는 '{repetition_syllable}' 돌림자를 첫 번째 글자나 두 번째 글자에 넣어 각각 5개의 이름을 생성해줘. "
+            f"그 중에서 {last_name}씨와 잘 어울리는 가장 적합한 5개의 이름을 선택해줘."
+        )
+    else:
+        repetition_text = ""
 
     prompt = f"""
-    '{last_name}'씨의 {gender_text} {style_text} 아기 이름 5개를 JSON 형식으로 추천해줘.
+    '{last_name}'씨의 {gender_text} 아기 이름을 {style_text} 스타일로 5개를 JSON 형식으로 추천해줘.
     이름은 입력한 {last_name}씨를 제외하고 {length_text} 이름으로 추천해줘.
-    {repetition_text}
     항상 한자어로 지은 이름 4개와 한글 이름 1개를 추천해줘. 예쁘고 사랑받을 수 있는 이름으로 추천해줘.
     한자어로 지은 경우에는 한자의 음독, 훈독 내용을 이름(한자) 부분에 포함해줘.
+    {repetition_text}
     
     각 이름은 다음 형식의 JSON 객체로 제공해줘:
     {{
